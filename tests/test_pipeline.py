@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import math
 
 import cv2
 import pytest
@@ -32,10 +33,43 @@ def test_complete_pipeline_on_boat_images(method: str, tmp_path) -> None:
     assert panorama.shape[0] >= 2592 and panorama.shape[1] >= 3888
     assert cv2.countNonZero(cv2.imread(str(result.artifacts["valid_mask"]), cv2.IMREAD_GRAYSCALE)) > 0
     assert all(path.is_file() for path in result.artifacts.values())
+    transparent = cv2.imread(str(result.artifacts["panorama_transparent"]), cv2.IMREAD_UNCHANGED)
+    assert transparent is not None and transparent.shape == (*panorama.shape[:2], 4)
 
     with (result.output_dir / "evaluation.csv").open(encoding="utf-8-sig", newline="") as stream:
         records = list(csv.DictReader(stream))
-    assert len([row for row in records if row["record_type"] == "image"]) == 4
-    assert len([row for row in records if row["record_type"] == "pair"]) == 3
-    assert len([row for row in records if row["record_type"] == "summary"]) == 1
+    image_rows = [row for row in records if row["record_type"] == "image"]
+    pair_rows = [row for row in records if row["record_type"] == "pair"]
+    summary_rows = [row for row in records if row["record_type"] == "summary"]
+    assert len(image_rows) == 4
+    assert len(pair_rows) == 3
+    assert len(summary_rows) == 1
+    assert not [row for row in records if row["record_type"] == "failure"]
+
+    for row in image_rows:
+        assert row["image_name"] and int(row["keypoints"]) > 0
+        assert math.isfinite(float(row["feature_seconds"]))
+    for row in pair_rows:
+        good_matches = int(row["good_matches"])
+        inliers = int(row["inliers"])
+        assert good_matches >= inliers > 0
+        assert float(row["inlier_ratio"]) == pytest.approx(inliers / good_matches)
+        assert math.isfinite(float(row["reprojection_error_px"]))
+        assert float(row["reprojection_error_px"]) >= 0
+        for field in ("matching_seconds", "homography_seconds"):
+            assert math.isfinite(float(row[field]))
+    summary = summary_rows[0]
+    timing_fields = (
+        "image_loading_seconds",
+        "feature_extraction_seconds_total",
+        "matching_seconds_total",
+        "homography_seconds_total",
+        "warping_seconds",
+        "blending_seconds",
+        "pipeline_seconds_total",
+    )
+    for field in timing_fields:
+        assert math.isfinite(float(summary[field]))
+        assert float(summary[field]) >= 0
+    assert float(summary["pipeline_seconds_total"]) >= sum(float(summary[k]) for k in timing_fields[:-1])
 

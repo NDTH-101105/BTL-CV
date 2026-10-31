@@ -78,7 +78,7 @@ def test_warp_estimated_boat_pair(method: str, tmp_path: Path) -> None:
         [item.mask for item in warped.images],
     )
     panorama_paths = save_blend_result(blended, output_dir)
-    assert len(panorama_paths) == 3
+    assert len(panorama_paths) == 4
     assert all(
         path.is_file() and cv2.imread(str(path), cv2.IMREAD_UNCHANGED) is not None
         for path in panorama_paths

@@ -16,7 +16,7 @@ from src.evaluation import ImageMetrics, PairMetrics, PipelineResult, PipelineTi
 from src.features import FeatureMethod, _normalize_method, extract_features
 from src.homography import HomographyEstimationError, estimate_homography, visualize_homography_matches
 from src.image_io import LoadedImage, load_images
-from src.matching import MatchResult, match_descriptors, visualize_matches
+from src.matching import match_descriptors, visualize_matches
 from src.warping import save_warped_images, warp_images_to_reference
 
 
@@ -118,7 +118,6 @@ def run_pipeline(
 
     homographies: list[np.ndarray] = []
     pair_metrics: list[PairMetrics] = []
-    pair_match_results: list[MatchResult] = []
     matching_total = 0.0
     homography_total = 0.0
     for index in range(len(images) - 1):
@@ -189,7 +188,6 @@ def run_pipeline(
             ) from exc
 
         homographies.append(homography.H)
-        pair_match_results.append(match_result)
         pair_metrics.append(
             PairMetrics(
                 source_image=source.path.name,
@@ -231,6 +229,7 @@ def run_pipeline(
     artifacts = {
         "panorama_before_blending": method_output_dir / "panorama_before_blending.png",
         "panorama_blended": method_output_dir / "panorama_blended.png",
+        "panorama_transparent": method_output_dir / "panorama_transparent.png",
         "valid_mask": method_output_dir / "panorama_valid_mask.png",
         "overlap_mask": method_output_dir / "panorama_overlap_mask.png",
     }
